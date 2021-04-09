@@ -1,6 +1,3 @@
-'''
-所有的边加载
-'''
 import json
 import pandas as pd
 from basis.assistant import getID
@@ -16,4 +13,4 @@ for i in range(data.shape[0]):
     combined_id = getID(data["head_ver"][i],data["tail_ver"][i])
     ALL_EDGES_DIC[combined_id] = { "id": data["id"][i], "block":json.loads(data["block"][i]), "length":data["length"][i], 
         "class":data["class"][i], "head_ver":data["head_ver"][i], "tail_ver":data["tail_ver"][i] }
-print("加载全部的边")
+print("Load all edges")
