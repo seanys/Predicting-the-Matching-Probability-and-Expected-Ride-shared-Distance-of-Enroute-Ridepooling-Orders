@@ -1,6 +1,5 @@
 download/*.*
-simulation_res/*.*
-prediction_res/*.*
+results/*.*
 datasets
 matching_relationship
 __MACOSX
