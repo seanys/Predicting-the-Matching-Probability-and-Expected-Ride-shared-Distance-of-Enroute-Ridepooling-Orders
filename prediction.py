@@ -1,6 +1,13 @@
-'''
-Input 
-'''
+'''Check the data for prediction'''
+import os
+from basis.file import downloadMatchingRelationship
+existing_datasets = os.path.exists("matching_relationship")
+if existing_datasets == False:
+    print("Downloading datasets...")
+    print("If failed, you can download them from https://drive.google.com/file/d/1_6QaIi7Ot1aIne-_aXoutvmTkZjVouaI/view?usp=sharing")
+    downloadDatasets()
+
+'''import neccessary dependency'''
 import scipy
 import pandas as pd
 import json
@@ -12,15 +19,13 @@ import datetime
 import csv
 from copy import deepcopy
 import progressbar
-import cProfile
 from assistant import Schedule,getID
-from basis.setting import MAX_SEARCH_LAYERS,DATA_PATH,PERIODS,PLATFORM
+from basis.setting import MAX_SEARCH_LAYERS,PERIODS,PLATFORM
 from basis.setting import WAITING_TIME,SPEED,MINUTE,PERIODS_MINUTES
 from basis.setting import CRITERION
 from basis.edges import ALL_EDGES
 from basis.vertexes import ALL_VERTEXES
 from basis.neighbor import ALL_NEIGHBOR_EDGES
-from assistant import PreProcessData
 
 
 ALL_SEGMENTS, ALL_NODES = {},{}
@@ -33,20 +38,17 @@ class InteratedSolver(object):
         self.max_OD_ID = 100
         self.min_samples = 15
         self.tendency = tendency
-        self.export_by_period = -1
         self.loadODDic()
         self.loadODs()
         self.loadNodeSegment()
 
         self.initialVariables()
         self.interatedSolver()
-        # self.exportVariables()
-        # self.loadVariables()
         self.predictResults(final=True)
     
     def loadODs(self):
-        lambda_df = pd.read_csv("data/combined_%s.csv" % self.HOUR_INDEX)
-        ODs_df = pd.read_csv("%s/prestore/ODs_layers_3.csv" % DATA_PATH)
+        lambda_df = pd.read_csv("network/combined_0.csv")
+        ODs_df = pd.read_csv("matching_relationship/ODs_layers_3.csv")
         self.all_ODs = {}
         bar = progressbar.ProgressBar(widgets=["ODs Loading:", progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])        
         for j in bar(range(self.max_OD_ID)):
@@ -64,17 +66,17 @@ class InteratedSolver(object):
                 "lam_w": lambda_df["num"][j]*self.tendency/(PERIODS_MINUTES[self.HOUR_INDEX]*40)
             }
 
-        print("#############预测模型配置##############")
-        print("Experiments Period: %2f:%2f  - %2f:%2f" % (PERIODS[self.HOUR_INDEX][0],PERIODS[self.HOUR_INDEX][1],PERIODS[self.HOUR_INDEX+1][0],PERIODS[self.HOUR_INDEX+1][1]))
-        print("Search Layers: %s " % MAX_SEARCH_LAYERS)
+        print("#############Experiments Setting##############")
+        print("Experiments Period: %02s:%02s  - %02s:%02s" % (PERIODS[self.HOUR_INDEX][0],PERIODS[self.HOUR_INDEX][1],PERIODS[self.HOUR_INDEX+1][0],PERIODS[self.HOUR_INDEX+1][1]))
+        print("Search Distance: %s " % MAX_SEARCH_LAYERS*500)
         print("MAX OD ID: %s" % self.max_OD_ID)
         print("Feasible OD: %s" % len(self.all_ODs))
 
     def loadNodeSegment(self):
         self.ALL_SEGMENTS = {}
         self.ALL_NODES = {}
-        nodes_df = pd.read_csv("%s/prestore/nodes_layers_3.csv"%(DATA_PATH))
-        segments_df = pd.read_csv("%s/prestore/segments_layers_3.csv"%(DATA_PATH))
+        nodes_df = pd.read_csv("matching_relationship/nodes_layers_3.csv")
+        segments_df = pd.read_csv("matching_relationship/segments_layers_3.csv")
         bar = progressbar.ProgressBar(widgets=["Node Loading:", progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])        
         self.all_node_keys = []
         for i in bar(range(nodes_df.shape[0])):
@@ -137,10 +139,6 @@ class InteratedSolver(object):
             self.P_s_e[key] = [random.random()/5,0] # 乘客在路段上未匹配概率（所有路段）
 
         self.num_lam_s_n = self.getNumberLamSN()
-        print("lam_n_a,P_n_0的变量个数:",len(self.lam_n_a))
-        print("lam_s,lam_s_d,P_s_1,P_s_e的变量个数:",len(self.lam_s))
-        print("lam_s_n的变量个数:",self.num_lam_s_n)
-        print("Overall :",len(self.lam_n_a) + len(self.lam_s_d) + self.num_lam_s_n + len(self.lam_s) + len(self.P_s_1) + len(self.P_s_e) + len(self.P_n_0))
 
     def interatedSolver(self):
         '''迭代求解全部变量'''
@@ -149,7 +147,6 @@ class InteratedSolver(object):
         starttime = datetime.datetime.now()
         while self.iterate_time < self.MAX_ITERATE_TIMES and (change > 0.1 or self.iterate_time < 20):
             _cur,_last = 1 - self.iterate_time%2, self.iterate_time%2
-            # print("第%s轮"%(self.iterate_time))
             self.obtainLamSDNA(_cur,_last)
             self.obtainLamSN(_cur,_last)
             self.obtainLamS(_cur,_last)
@@ -160,38 +157,27 @@ class InteratedSolver(object):
             change = max(all_change)
             print("%s,%s,%s,%s,%s,%s,%s"%(self.iterate_time,all_change[0],all_change[1],all_change[2],all_change[3],all_change[4],all_change[5]))
             self.iterate_time = self.iterate_time + 1
-            if self.export_by_period > 0 and self.iterate_time%self.export_by_period == 0:
-                self.predictResults(final=False)
 
         endtime = datetime.datetime.now()
-        print("迭代次数: %s 次" % self.iterate_time)
-        print("执行时间: %s 秒" % (endtime - starttime))
+        print("Iteration Times: %s" % self.iterate_time)
+        print("Execution Time: %s second" % (endtime - starttime))
 
-        fo = open("Simulation/res/new_paper_iteration_log.txt", "a+")
-        fo.write("预测时间段: %s 点 %s 分 - %s 点 %s 分 \n" % (PERIODS[self.HOUR_INDEX][0],PERIODS[self.HOUR_INDEX][1],PERIODS[self.HOUR_INDEX+1][0],PERIODS[self.HOUR_INDEX+1][1]))
-        fo.write("实验设备: %s \n" % PLATFORM)
-        fo.write("实验时间: %s \n" % (time.asctime( time.localtime(time.time()))))
-        fo.write("最大检索层数: %s 层\n" % MAX_SEARCH_LAYERS)
-        fo.write("最大OD ID: %s 个\n" % self.max_OD_ID)
+        fo = open("results/experiments_log.txt", "a+")
+        fo.write("Study Period: %s 点 %s 分 - %s 点 %s 分 \n" % (PERIODS[self.HOUR_INDEX][0],PERIODS[self.HOUR_INDEX][1],PERIODS[self.HOUR_INDEX+1][0],PERIODS[self.HOUR_INDEX+1][1]))
+        fo.write("Platform: %s \n" % PLATFORM)
+        fo.write("Current Time: %s \n" % (time.asctime( time.localtime(time.time()))))
+        fo.write("Search Distance: %s m\n" % MAX_SEARCH_LAYERS*500)
+        fo.write("Num of OD: %s 个\n" % self.max_OD_ID)
         fo.write("可行OD数目: %s 个\n" % len(self.all_ODs))
-        fo.write("Node数目: %s 个\n" % len(self.ALL_NODES))
-        fo.write("Segment数目: %s 个\n" % len(self.ALL_SEGMENTS))
-        fo.write("变量共计: %s 个\n" % (len(self.lam_n_a) + len(self.lam_s_d) + self.num_lam_s_n + len(self.lam_s) + len(self.P_s_1) + len(self.P_s_e) + len(self.P_n_0)))
+        fo.write("Node: %s \n" % len(self.ALL_NODES))
+        fo.write("Segment: %s \n" % len(self.ALL_SEGMENTS))
+        fo.write("Number of Variables: %s\n" % (len(self.lam_n_a) + len(self.lam_s_d) + self.num_lam_s_n + len(self.lam_s) + len(self.P_s_1) + len(self.P_s_e) + len(self.P_n_0)))
         fo.write("")
-        fo.write("迭代次数: %s 次\n" % self.iterate_time)
-        fo.write("最终变化: %s\n" % change)
-        fo.write("执行时间: %s 秒\n\n" % (endtime - starttime))
-        # average = int((endtime - starttime).seconds)/self.iterate_time
-        # fo.write("单轮时间: %s 秒\n\n" % average)
+        fo.write("Ieration Times: %s\n" % self.iterate_time)
+        fo.write("Execution Time: %s second\n\n" % (endtime - starttime))
         fo.close()
 
-        # fo = open("Simulation/res/average_time/%s.txt"%self.max_OD_ID, "a+")
-        # average = int((endtime - starttime).seconds)/self.iterate_time
-        # fo.write("单轮时间: %s 秒\n\n" % average)
-        # fo.close()
-
     def obtainLamSDNA(self,_cur,_last):
-        '''公式1-2计算'''
         for i in range(len(self.all_node_keys)):
             node_key = self.all_node_keys[i]
             OD_id = self.ALL_NODES[node_key]["OD_id"]
@@ -204,7 +190,6 @@ class InteratedSolver(object):
                 self.lam_n_a[node_key][_cur] =self.lam_s_d[sub_segment_key][_cur] * (1 - self.P_s_1[sub_segment_key][_last])
 
     def obtainLamSN(self,_cur,_last):
-        '''获得lambdaSN'''
         for i in self.all_node_keys:
             if self.ALL_NODES[i]["matching_segments"] == []: continue
             first_segment = self.ALL_NODES[i]["matching_segments"][0]
@@ -217,14 +202,12 @@ class InteratedSolver(object):
                 self.lam_s_n[current_segment_key][i][_cur] = s_n[current_segment_key]
 
     def obtainLamS(self,_cur,_last):
-        '''公式4计算'''
         for i in self.all_segment_keys:
             self.lam_s[i][_cur] = 0
             for j in self.ALL_SEGMENTS[i]["matching_nodes"]:
                 self.lam_s[i][_cur] = self.lam_s[i][_cur] + self.lam_s_n[i][j][_cur]
 
     def obtainPS(self,_cur,_last):
-        '''公式6-9计算'''
         for i in self.all_segment_keys:
             t_s = WAITING_TIME
             if self.ALL_SEGMENTS[i]["type"] != 1:
@@ -236,7 +219,6 @@ class InteratedSolver(object):
                 self.P_s_e[i][_cur] = (1 - math.pow(E, -self.lam_s[i][_last] * t_s)) * self.lam_s_d[i][_last]/self.lam_s[i][_last]
 
     def obtainPN(self,_cur,_last):
-        '''公式10'''
         for i in self.all_node_keys:
             product = 1
             for segment_id in self.ALL_NODES[i]["matching_segments"]:
@@ -336,36 +318,17 @@ class InteratedSolver(object):
             all_l_w[i] = l_w
             all_e_w[i] = e_w
         endtime = datetime.datetime.now()
-        print("求解执行时间: %s 秒" % (endtime - starttime))
+        print("Execution Time: %s second" % (endtime - starttime))
 
-        fo = open("Simulation/res/new_paper_iteration_log.txt", "a+")
-        fo.write("求解执行时间: %s 秒\n\n" % (endtime - starttime))
+        fo = open("results/experiments_log.txt", "a+")
+        fo.write("Execution Time: %s second\n\n" % (endtime - starttime))
         fo.close()
 
-        if final == False:
-            file_path = "Simulation/res/iteration_times/OD_%s_PERIOD_%s_PRE_PERIOD_%.2f.csv"%(self.max_OD_ID,self.HOUR_INDEX,self.tendency)
-            if self.iterate_time == self.export_by_period:
-                with open(file_path,"w") as csvfile:
-                    writer = csv.writer(csvfile)
-                    writer.writerow(["OD_id", "start_ver", "end_ver", "num"])
-                    for i in self.all_ODs.keys():
-                        writer.writerow([self.all_ODs[i]["OD_id"], self.all_ODs[i]["start_ver"], self.all_ODs[i]["end_ver"],  self.all_ODs[i]["num"]])
-            arr_P_w,arr_l_w,arr_e_w = [],[],[]
-            for key in self.all_ODs.keys():
-                arr_P_w.append(all_P_w[key]),arr_l_w.append(all_l_w[key]),arr_e_w.append(all_e_w[key])
-            cur_index = int(self.iterate_time/self.export_by_period)
-            res_df = pd.read_csv(file_path)
-            res_df["P_w_%s"%cur_index],res_df["l_w_%s"%cur_index],res_df["e_w_%s"%cur_index] = arr_P_w,arr_l_w,arr_e_w
-            if cur_index > 1:
-                res_df["P_w_ch_%s"%cur_index],res_df["l_w_ch_%s"%cur_index],res_df["e_w_ch_%s"%cur_index] = \
-                    abs(res_df["P_w_%s"%cur_index]-res_df["P_w_%s"%(cur_index-1)]),abs(res_df["l_w_%s"%cur_index]-res_df["l_w_%s"%(cur_index-1)]),abs(res_df["e_w_%s"%cur_index]-res_df["e_w_%s"%(cur_index-1)])
-            res_df.to_csv(file_path,index=False)
-        else:
-            with open("Simulation/res/prediction/OD_%s_PERIOD_%s_SAMPLE_%s_PRE_%.2f.csv"%(self.max_OD_ID,self.HOUR_INDEX,self.min_samples,self.tendency),"w") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["OD_id", "start_ver", "end_ver", "num", "P_w", "l_w", "e_w"])
-                for i in self.all_ODs.keys():
-                    writer.writerow([self.all_ODs[i]["OD_id"], self.all_ODs[i]["start_ver"], self.all_ODs[i]["end_ver"],  self.all_ODs[i]["num"], all_P_w[i], all_l_w[i], all_e_w[i]])
+        with open("results/OD_%s_PERIOD_%s_SAMPLE_%s_PRE_%.2f.csv"%(self.max_OD_ID,self.HOUR_INDEX,self.min_samples,self.tendency),"w") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["OD_id", "start_ver", "end_ver", "num", "P_w", "l_w", "e_w"])
+            for i in self.all_ODs.keys():
+                writer.writerow([self.all_ODs[i]["OD_id"], self.all_ODs[i]["start_ver"], self.all_ODs[i]["end_ver"],  self.all_ODs[i]["num"], all_P_w[i], all_l_w[i], all_e_w[i]])
 
     def getFeasibleNodes(self,nodes,all_shared_distance,all_detour):
         new_nodes,new_shared_distance,new_detour = [],[],[]
@@ -388,7 +351,7 @@ class InteratedSolver(object):
         return new_segments,new_shared_distance,new_detour
 
     def loadODDic(self):
-        df = pd.read_csv("%s/prestore/ODs_layers_3.csv"%DATA_PATH)
+        df = pd.read_csv("matching_relationship/ODs_layers_3.csv")
         self.OD_dic = {}
         bar = progressbar.ProgressBar(widgets=["OD Dic Loading:", progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])        
         for i in range(df.shape[0]):
@@ -401,9 +364,5 @@ class InteratedSolver(object):
             }
 
 if __name__ == "__main__":
-    # PreProcessData()
-    # InteratedSolver(0.25)
-    # InteratedSolver(0.5)
-    # InteratedSolver(0.75)
     InteratedSolver(1)
 

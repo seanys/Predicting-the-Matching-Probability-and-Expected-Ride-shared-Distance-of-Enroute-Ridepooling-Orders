@@ -1,28 +1,31 @@
-from copy import deepcopy
-from interval import Interval
-from operator import itemgetter,attrgetter
+'''Check the datasets for simulation'''
+import os
+from basis.file import downloadDatasets
+existing_datasets = os.path.exists("datasets")
+if existing_datasets == False:
+    print("Downloading datasets...")
+    print("If failed, you can download them from https://drive.google.com/file/d/1yi3aNhB6xc1vjsWX5pq9eb5rSyDiyeRw/view?usp=sharing")
+    downloadDatasets()
+
+'''import neccessary dependency'''
 import random
 import simpy
-import json
 import time
-import numpy as np
 import pandas as pd
 import datetime
 import csv
-import progressbar
 from assistant import Schedule
 from basis.setting import MAX_SEARCH_LAYERS,MAX_DETOUR_LENGTH
-from basis.setting import WAITING_TIME,DATA_PATH,PERIODS_MINUTES,getSpeed,SPEED
+from basis.setting import WAITING_TIME,PERIODS_MINUTES,getSpeed,SPEED
 from basis.edges import ALL_EDGES,ALL_EDGES_DIC
 from basis.vertexes import ALL_VERTEXES
 from basis.neighbor import ALL_NEIGHBOR_EDGES
 from basis.assistant import getID
-
+import progressbar
 
 ALL_PASSENGERS = {} 
 EDGES_TO_CUSTOMERS = [[] for _ in range(len(ALL_EDGES))] # The customers existing in each edge 
 RANDOM_SEED = 30
-
 
 class CarpoolSimulation(object):
     def __init__(self, env, max_time):
@@ -33,28 +36,30 @@ class CarpoolSimulation(object):
         self.max_time = max_time
         self.all_OD = False
         self.COMBINED_OD = True
-        self.tendency = 1
+        self.tendency = 1 # Proportion of passengers who choose carpooling
         self.possibleOD()
         self.env.process(self.generateByHistory())
 
     def possibleOD(self):
-        '''Obtain all '''
-        ODs_df = pd.read_csv("data/ODs_combined.csv")
+        '''Load all origin-destination'''
+        ODs_df = pd.read_csv("network/ODs_combined.csv")
         self.possible_ODs = {}
         for i in range(ODs_df.shape[0]):
             self.possible_ODs[getID(ODs_df["start_ver"][i],ODs_df["end_ver"][i])] = i
 
     def generateByHistory(self):
-        '''根据历史的数据生成乘客'''
-        self.csv_path = "%s/experiment/ALL_COMBINED_%s_%.2f.csv"%(DATA_PATH,self.COMBINED_OD,self.tendency)
+        '''Run simulation experiments based on data provided by Didi Chuxing'''
+        self.csv_path = "simulation_res/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv"
         with open(self.csv_path,"w") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["passenger_id", "real_start_date", "real_start_time", "start_time", "end_time", "OD_id", 
                 "start_ver", "end_ver","orginal_start_ver", "orginal_end_ver", "original_distance",  "final_distance", 
                     "matching_or", "shared_distance", "detour", "gap", "matching_id", "matching_type", "matching_ver",""])
-        history_df = pd.read_csv("%s/orders/all_orders.csv"%(DATA_PATH))
+        history_df = pd.read_csv("datasets/DATASETS_DIDI_CHUXING_HAIKOU.csv")
         history_df["depature_time"] = pd.to_datetime(history_df['depature_time'])
         cur_line = 1
+        print("The simulation result is stored in simulation_res/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv")
+        bar = progressbar.ProgressBar(max_value=history_df.shape[0],widgets=["Simulation:", progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])
         while True:
             while history_df["depature_time"][cur_line].minute == history_df["depature_time"][cur_line-1].minute:
                 self.env.process(self.generateLine(cur_line,history_df))
@@ -64,16 +69,14 @@ class CarpoolSimulation(object):
             yield self.env.timeout(1)
             self.env.process(self.generateLine(cur_line,history_df))
             cur_line = cur_line + 1
+            bar.update(cur_line)
             if cur_line >= history_df.shape[0]: break
     
     def generateLine(self,cur_line,history_df):
-        '''Generate by history'''
+        '''Generate one line in csv'''
         original_start_ver,original_end_ver = history_df["depature_ver"][cur_line],history_df["arrive_ver"][cur_line]
         start_ver,end_ver = history_df["combined_depature_ver"][cur_line],history_df["combined_arrive_ver"][cur_line]
-        if self.COMBINED_OD == True:
-            combined_id = getID(start_ver,end_ver)
-        else:
-            combined_id = getID(original_start_ver,original_end_ver)
+        combined_id = getID(start_ver,end_ver)
         if random.random() > self.tendency or (start_ver == end_ver and self.COMBINED_OD == True) or (original_start_ver == original_end_ver and self.COMBINED_OD == False) or combined_id not in self.possible_ODs:
             yield self.env.timeout(0.0000000000001)
         else:
@@ -82,10 +85,7 @@ class CarpoolSimulation(object):
 
     def passenger(self, OD_detail, OD_id):
         '''Simulate the passenger'''
-        if self.COMBINED_OD == True:
-            start_ver,end_ver = OD_detail[0],OD_detail[1]
-        else:
-            start_ver,end_ver = OD_detail[2],OD_detail[3]
+        start_ver,end_ver = OD_detail[0],OD_detail[1]
         if start_ver == end_ver: return
         passenger_id = len(ALL_PASSENGERS.keys())
         real_time = "2017-%02d-%02d %02d:%02d" % (OD_detail[4].month,OD_detail[4].day,OD_detail[4].hour,OD_detail[4].minute)
@@ -132,18 +132,19 @@ class CarpoolSimulation(object):
             ALL_PASSENGERS[another_id]["carry_or"] = False
             ALL_PASSENGERS[another_id]["carry_id"] = passenger_id
             ALL_PASSENGERS[passenger_id]["status"], ALL_PASSENGERS[another_id]["status"] = 2,2
-            # 记录匹配情况和触发操作
-            ALL_PASSENGERS[passenger_id]["matching_type"] = 0 # 起始位置匹配到
+            # Record the state of passengers
+            ALL_PASSENGERS[passenger_id]["matching_type"] = 0 # Match successfully when appear
             if res["_type"] == 0:
                 ALL_PASSENGERS[another_id]["wait_for_match"].succeed()
-                ALL_PASSENGERS[another_id]["matching_type"] = 1 # 起点等待匹配
+                ALL_PASSENGERS[another_id]["matching_type"] = 1 # Match successfully at origin
             else:
-                ALL_PASSENGERS[another_id]["matching_type"] = 2 # 途中匹配
-            yield ALL_PASSENGERS[passenger_id]["wait_for_carry"] # 等待来接
+                ALL_PASSENGERS[another_id]["matching_type"] = 2 # Match successfully enroute
+            yield ALL_PASSENGERS[passenger_id]["wait_for_carry"] # Waiting for picking up
             self.env.process(self.operateOnCar(passenger_id))
             return
         
-        # 起始位置开始等待，0为起始点待匹配，1为在车上待匹配，2为已经匹配成功，3为到达目的地
+        # status = 0 waiting at orgin     status = 1 waiting enroute  
+        # status = 2 match success        status = 3 arrive destination  
         ALL_PASSENGERS[passenger_id]["wait_for_match"] = self.env.event()
         ALL_PASSENGERS[passenger_id]["status"] = 0
         all_arces = ALL_VERTEXES[start_ver]["front_arc"]
@@ -159,7 +160,7 @@ class CarpoolSimulation(object):
     def operateOnCar(self,passenger_id):
         '''Cars'''
         if ALL_PASSENGERS[passenger_id]["status"] == 0: 
-            ALL_PASSENGERS[passenger_id]["status"] = 1 # 0为起始点待匹配，1为在车上待匹配，2为已经匹配成功
+            ALL_PASSENGERS[passenger_id]["status"] = 1 
             route,route_segs = Schedule.verRouteByHistory(ALL_PASSENGERS[passenger_id]["start_ver"],ALL_PASSENGERS[passenger_id]["end_ver"])
             ALL_PASSENGERS[passenger_id]["route"], ALL_PASSENGERS[passenger_id]["route_segs"] = route,route_segs
 
@@ -179,11 +180,11 @@ class CarpoolSimulation(object):
             ALL_PASSENGERS[passenger_id]["route"] = ALL_PASSENGERS[passenger_id]["route"][1:]
             ALL_PASSENGERS[passenger_id]["route_segs"] = ALL_PASSENGERS[passenger_id]["route_segs"][1:]
 
-            yield self.env.timeout(ALL_EDGES[current_edge]["length"]/SPEED) 
-            yield self.env.timeout(0.5)
+            yield self.env.timeout(ALL_EDGES[current_edge]["length"]/SPEED) # travel trough a segment/link/road
+            yield self.env.timeout(0.5) # Travel trough the node
             
             EDGES_TO_CUSTOMERS[current_edge].remove(passenger_id)
-        
+
         ALL_PASSENGERS[passenger_id]["final_route"].append(ALL_PASSENGERS[passenger_id]["end_ver"])
         ALL_PASSENGERS[passenger_id]["finish"] = True
         
@@ -197,10 +198,12 @@ class CarpoolSimulation(object):
             real_start_time = ALL_PASSENGERS[passenger_id]["real_start_time"]
             real_date = ALL_PASSENGERS[passenger_id]["real_date"]
             if ALL_PASSENGERS[passenger_id]["status"] == 1:
+                # match fail
                 writer.writerow([passenger_id, real_date, real_start_time, ALL_PASSENGERS[passenger_id]["start_time"], "%.1f"%self.env.now, OD_id, start_ver, 
                     end_ver, original_start_ver, original_end_ver, original_distance, original_distance, 0, "", "", "", "", 
                         "" ,"", ""])
             else:
+                # match success
                 self.overall_success = self.overall_success + 1
                 writer.writerow([passenger_id, real_date, real_start_time, ALL_PASSENGERS[passenger_id]["start_time"], "%.1f"%self.env.now, OD_id, start_ver, 
                     end_ver, original_start_ver, original_end_ver, original_distance, "%2.2f" % ALL_PASSENGERS[passenger_id]["total_distance"], 1, 
@@ -209,7 +212,7 @@ class CarpoolSimulation(object):
                                 ALL_PASSENGERS[passenger_id]["matching_type"], ALL_PASSENGERS[passenger_id]["matching_ver"],""])
 
 if __name__ == '__main__':
-    max_time = 100
+    max_time = 10000
     random.seed(RANDOM_SEED)
     env = simpy.Environment()
     CarpoolSimulation(env,max_time)

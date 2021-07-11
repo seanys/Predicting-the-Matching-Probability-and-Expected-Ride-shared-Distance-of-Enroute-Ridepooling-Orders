@@ -1,0 +1,8 @@
+download/*.*
+simulation_res/*.*
+prediction_res/*.*
+datasets
+matching_relationship
+__MACOSX
+__pycache__
+*/__pycache__/*.*
