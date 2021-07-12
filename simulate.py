@@ -14,9 +14,11 @@ import time
 import pandas as pd
 import datetime
 import csv
+import numpy as np
 from assistant import Schedule
 from basis.setting import MAX_SEARCH_LAYERS,MAX_DETOUR_LENGTH
 from basis.setting import WAITING_TIME,PERIODS_MINUTES,getSpeed,SPEED
+from basis.time_periods import ALL_PERIODS,TIME_DICS,PERIODS
 from basis.edges import ALL_EDGES,ALL_EDGES_DIC
 from basis.vertexes import ALL_VERTEXES
 from basis.neighbor import ALL_NEIGHBOR_EDGES
@@ -49,7 +51,7 @@ class CarpoolSimulation(object):
 
     def generateByHistory(self):
         '''Run simulation experiments based on data provided by Didi Chuxing'''
-        self.csv_path = "simulation_res/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv"
+        self.csv_path = "results/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv"
         with open(self.csv_path,"w") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["passenger_id", "real_start_date", "real_start_time", "start_time", "end_time", "OD_id", 
@@ -58,7 +60,7 @@ class CarpoolSimulation(object):
         history_df = pd.read_csv("datasets/DATASETS_DIDI_CHUXING_HAIKOU.csv")
         history_df["depature_time"] = pd.to_datetime(history_df['depature_time'])
         cur_line = 1
-        print("The simulation result is stored in simulation_res/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv")
+        print("The simulation result is stored in results/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv")
         bar = progressbar.ProgressBar(max_value=history_df.shape[0],widgets=["Simulation:", progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])
         while True:
             while history_df["depature_time"][cur_line].minute == history_df["depature_time"][cur_line-1].minute:
@@ -211,10 +213,130 @@ class CarpoolSimulation(object):
                             "%2.2f" % ALL_PASSENGERS[passenger_id]["gap"], ALL_PASSENGERS[passenger_id]["matching_id"],
                                 ALL_PASSENGERS[passenger_id]["matching_type"], ALL_PASSENGERS[passenger_id]["matching_ver"],""])
 
+class AnalyzeSimulationResults(object):
+    def __init__(self):
+        self.all_start_ver,self.all_end_ver = [],[]
+        self.combined = True
+        self.min_sample = 15
+        self.tendency = 1
+        self.loadAllWeek()
+        self.computeByDay()
+
+    def loadAllWeek(self):
+        df = pd.read_csv("datasets/date.csv")
+        self.date_week = {}
+        for i in range(df.shape[0]):
+            self.date_week[df["date"][i]] = df["week"][i]
+
+    def loadOriginal(self):
+        self.origianl_orders,self.origianl_days = {},{}
+        df = pd.read_csv("network/combined_0.csv")
+        for j in range(df.shape[0]):
+            self.origianl_orders[getID(df["start_ver"][j],df["end_ver"][j])] = df["num"][j]
+            self.origianl_days[getID(df["start_ver"][j],df["end_ver"][j])] = df["days"][j]
+
+    def computeByDay(self):
+        self.loadOriginal()
+        exp_res = pd.read_csv("results/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv")
+        exp_res["real_start_time"] = pd.to_datetime(exp_res["real_start_time"])
+        self.all_ODs = {}
+        bar = progressbar.ProgressBar(widgets=['Days ', progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])
+        all_days_str = exp_res["real_start_date"].unique()
+        all_days = []
+        print("共计天数:",len(all_days_str))
+        for cur_date in bar(all_days_str):
+            if self.date_week[cur_date] >= 5: continue
+            sta_res = self.computeOneDay(exp_res[exp_res["real_start_date"]==cur_date],cur_date)
+            all_days.append(sta_res)
+
+        for sta_day in all_days:
+            for period_index in range(len(PERIODS_MINUTES)):
+                for key in sta_day[period_index].keys():
+                    if sta_day[period_index][key]["num"] == 0: continue
+                    self.all_ODs[key][period_index]["num"].append(sta_day[period_index][key]["num"])
+                    self.all_ODs[key][period_index]["matching_num"].append(sta_day[period_index][key]["matching_num"])
+                    self.all_ODs[key][period_index]["matching_probability"].append(sta_day[period_index][key]["matching_probability"])
+                    self.all_ODs[key][period_index]["aver_shared_distance"].append(sta_day[period_index][key]["aver_shared_distance"])
+                    self.all_ODs[key][period_index]["aver_final_distance"].append(sta_day[period_index][key]["aver_final_distance"])
+        
+        with open("results/SIMULATION_STATISTIC.csv","w") as csvfile:
+            writer = csv.writer(csvfile)
+            row = ["start_ver","end_ver","original_num","original_days"]
+            for i in range(len(PERIODS_MINUTES)): 
+                row += ["num%s"%i,"matching_num%s"%i,"days%s"%i,"matching_probability%s"%i,"aver_shared_distance%s"%i,"aver_final_distance%s"%i]
+            writer.writerow(row)
+            for i,key in enumerate(self.all_ODs.keys()):
+                combined_id = getID(self.all_ODs[key][0]["start_ver"],self.all_ODs[key][0]["end_ver"])
+                if combined_id not in self.origianl_days: continue
+                detail = [self.all_ODs[key][0]["start_ver"],self.all_ODs[key][0]["end_ver"],self.origianl_orders[combined_id],self.origianl_days[combined_id]]
+                for j in range(len(PERIODS_MINUTES)):
+                    detail += [sum(self.all_ODs[key][j]["num"]),sum(self.all_ODs[key][j]["matching_num"]),len(self.all_ODs[key][j]["num"]),\
+                        np.mean(self.all_ODs[key][j]["matching_probability"]), np.mean(self.all_ODs[key][j]["aver_shared_distance"]),\
+                            np.mean(self.all_ODs[key][j]["aver_final_distance"])]
+                writer.writerow(detail)
+    
+    def computeOneDay(self,today_data,cur_date):
+        self.count = {}
+        for i in today_data.index:
+            time_id = getID(today_data["real_start_time"][i].hour,today_data["real_start_time"][i].minute)
+            if time_id not in TIME_DICS: continue
+            period_index = TIME_DICS[time_id]
+            if self.combined == True:
+                start_ver,end_ver = today_data["start_ver"][i],today_data["end_ver"][i]
+            else:
+                start_ver,end_ver = today_data["orginal_start_ver"][i],today_data["orginal_end_ver"][i]
+            _id = getID(start_ver,end_ver)
+            if _id not in self.all_ODs:
+                self.all_ODs[_id] = [{"start_ver":start_ver,"end_ver":end_ver,"num":[],"matching_num":[],"matching_probability":[],"aver_shared_distance":[],"aver_final_distance":[]} for _ in range(len(PERIODS_MINUTES))]
+            if _id not in self.count:
+                self.countNewOD(start_ver,end_ver)
+            if today_data["matching_or"][i] == 1:
+                self.count[_id]["period_shared_distance"][period_index] += today_data["shared_distance"][i]
+                self.count[_id]["period_matching_num"][period_index] = self.count[_id]["period_matching_num"][period_index] + 1
+            self.count[_id]["period_final_distance"][period_index] += today_data["final_distance"][i]
+            self.count[_id]["period_num"][period_index] = self.count[_id]["period_num"][period_index] + 1
+
+        sta_day = []
+        for period_index in range(len(PERIODS_MINUTES)):
+            sta_day.append({})
+            for key in self.count:
+                sta_day[period_index][key] = {}
+                sta_day[period_index][key]["num"] = self.count[key]["period_num"][period_index]
+                sta_day[period_index][key]["matching_num"] = self.count[key]["period_matching_num"][period_index]
+                if self.count[key]["period_num"][period_index] == 0:
+                    sta_day[period_index][key]["matching_probability"] = 0
+                    sta_day[period_index][key]["aver_shared_distance"] = 0
+                    sta_day[period_index][key]["aver_final_distance"] = 0
+                else:
+                    sta_day[period_index][key]["matching_probability"] = self.count[key]["period_matching_num"][period_index]/self.count[key]["period_num"][period_index]
+                    sta_day[period_index][key]["aver_shared_distance"] = self.count[key]["period_shared_distance"][period_index]/self.count[key]["period_num"][period_index]
+                    sta_day[period_index][key]["aver_final_distance"] = self.count[key]["period_final_distance"][period_index]/self.count[key]["period_num"][period_index]
+
+        return sta_day
+
+    def countNewOD(self,start_ver,end_ver):
+        _id = getID(start_ver,end_ver)
+        self.count[_id] = {
+            "num":0,
+            "start_ver":start_ver,
+            "end_ver":end_ver,
+            "matching_num":0,
+            "total_shared_distance":0,
+            "total_final_distance":0,
+            "period_num":[0 for _ in range(len(ALL_PERIODS))],
+            "period_matching_num":[0 for _ in range(len(ALL_PERIODS))],
+            "period_shared_distance":[0 for _ in range(len(ALL_PERIODS))],
+            "period_final_distance":[0 for _ in range(len(ALL_PERIODS))]
+        }
+        self.all_start_ver.append(start_ver)
+        self.all_end_ver.append(end_ver)
+
 if __name__ == '__main__':
-    max_time = 10000
+    max_time = 1000000
     random.seed(RANDOM_SEED)
     env = simpy.Environment()
     CarpoolSimulation(env,max_time)
-
     env.run(until=max_time)
+
+    AnalyzeSimulationResults()
+

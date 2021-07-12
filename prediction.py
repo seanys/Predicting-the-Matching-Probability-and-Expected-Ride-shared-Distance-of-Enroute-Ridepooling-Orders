@@ -328,7 +328,7 @@ class InteratedSolver(object):
         fo.write("Execution Time: %s second\n\n" % (endtime - starttime))
         fo.close()
 
-        with open("results/OD_%s_PERIOD_%s_SAMPLE_%s_PRE_%.2f.csv"%(self.max_OD_ID,self.HOUR_INDEX,self.min_samples,self.tendency),"w") as csvfile:
+        with open("results/PREDICTION_OD_%s_PERIOD_%s_SAMPLE_%s_TENDENCY_%.2f.csv"%(self.max_OD_ID,self.HOUR_INDEX,self.min_samples,self.tendency),"w") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["OD_id", "start_ver", "end_ver", "num", "P_w", "l_w", "e_w"])
             for i in self.all_ODs.keys():
