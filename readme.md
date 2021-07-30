@@ -5,3 +5,5 @@
 `simulation.py` : Simulate the carpooling system based on the order provided by DIDI Chuxing. 
 
 `statistic.py` : Analyse the simulation results and compare with the prediction results. 
+
+`grid-experiments/`: The experiments in 30x30 grid network.
