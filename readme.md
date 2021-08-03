@@ -1,6 +1,5 @@
 ## Predicting the Matching Probability and Expected Ride/shared Distance of Enroute Ridepooling Orders
 
-`haikou-experiments/`: The experiments in Haikou City
+`haikou-experiments/`: The experiments based on the Haikou road network.
 
-`grid-experiments/`: The experiments in 30x30 grid network.
-
+`grid-experiments/`: The experiments based on a 30x30 grid network.
