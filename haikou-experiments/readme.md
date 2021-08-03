@@ -6,6 +6,16 @@ if __name__ == "__main__":
     InteratedSolver(max_OD_ID)
 ```
 
-`simulation.py` : Simulate the carpooling system based on the order provided by DIDI Chuxing. 
+`simulation.py` : Simulate the occurrence, movements, and state transition of each order based on the datasets provided by DIDI Chuxing. 
 
 `compare.py` : Analyse the simulation results and compare with the prediction results.
+
+`network/`: The haikou road network.
+
+`results/`: This simulation and prediction results of `prediction.py` and `simulation.py` are output to this folder.  
+
+`paper_res/`: The results of this paper. 
+
+`datasets/`: This folder contains the datasets provided by Didi Chuxing. It will be download from the Google Driver when running the  `simulation.py`. 
+
+`matching_relationship/`: This folder contains all taker states, seeker states, and matching pairs in Haikou Road network processed in advance.

@@ -17,7 +17,7 @@ def downloadFileFromGoogleDrive(id, destination):
         params = { 'id' : id, 'confirm' : token }
         response = session.get(URL, params = params, stream = True)
 
-    if destination == "datasets.zip" or destination == "matching_relationship.zip":
+    if destination == "haikou-experiments/datasets.zip" or destination == "haikou-experiments/matching_relationship.zip":
         saveResponseContent(response, destination, CHUNK_SIZE = 12000) 
         return
 
@@ -44,7 +44,7 @@ def saveResponseContent(response, destination, CHUNK_SIZE):
 def decompression(name):
     zFile = zipfile.ZipFile("%s.zip"%name, "r")
     for fileM in zFile.namelist(): 
-        zFile.extract(fileM, "")
+        zFile.extract(fileM, "haikou-experiments")
     zFile.close()
 
     if os.path.exists("%s.zip"%name):

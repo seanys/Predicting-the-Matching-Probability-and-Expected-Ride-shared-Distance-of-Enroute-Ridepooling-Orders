@@ -1,11 +1,11 @@
 '''Check the data for prediction'''
 import os
-from basis.file import downloadDatasets
+from basis.file import downloadMatchingRelationship
 existing_datasets = os.path.exists("haikou-experiments/matching_relationship")
 if existing_datasets == False:
     print("Downloading datasets...")
     print("If failed, you can download them from https://drive.google.com/file/d/1_6QaIi7Ot1aIne-_aXoutvmTkZjVouaI/view?usp=sharing")
-    downloadDatasets()
+    downloadMatchingRelationship()
 
 '''import neccessary dependency'''
 import scipy
