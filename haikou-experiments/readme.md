@@ -18,4 +18,4 @@ if __name__ == "__main__":
 
 `datasets/`: This folder contains the datasets provided by Didi Chuxing. It will be download from the Google Driver when running the  `simulation.py`. 
 
-`matching_relationship/`: This folder contains all taker states, seeker states, and matching pairs in Haikou Road network processed in advance.
+`matching_relationship/`: This folder contains all taker states, seeker states, and matching pairs in Haikou Road network processed in advance. It will be download from the Google Driver when running the  `prediction.py`. 
