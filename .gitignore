@@ -1,8 +1,6 @@
-haikou-experiments/download/*.*
-# haikou-experiments/results/*.*
 haikou-experiments/datasets
 haikou-experiments/matching_relationship
+haikou-experiments/plot
 __MACOSX
 __pycache__
 */__pycache__/*.*
-haikou-experiments/plot
