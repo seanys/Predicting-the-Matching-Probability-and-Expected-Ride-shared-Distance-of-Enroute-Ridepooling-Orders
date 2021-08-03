@@ -1,5 +1,5 @@
 haikou-experiments/download/*.*
-haikou-experiments/results/*.*
+# haikou-experiments/results/*.*
 haikou-experiments/datasets
 haikou-experiments/matching_relationship
 __MACOSX
