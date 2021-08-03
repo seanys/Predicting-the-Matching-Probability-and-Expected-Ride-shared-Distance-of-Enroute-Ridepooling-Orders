@@ -13,7 +13,7 @@ import pandas as pd
 import csv
 import progressbar
 
-ALL_ROUTES = pd.read_csv("datasets/SHORTEST_ROUTE.csv")
+ALL_ROUTES = pd.read_csv("haikou-experiments/datasets/SHORTEST_ROUTE.csv")
 ALL_NODES,ALL_SEGMENTS = {},{}
 
 class Schedule(object):
@@ -139,33 +139,4 @@ class Schedule(object):
             return res
 
         return {}
-
-def getDate():
-    df = pd.read_csv("%s/experiment/ALL_COMBINED_True.csv"%DATA_PATH)
-    df["real_start_time"] = pd.to_datetime(df["real_start_time"])
-    date_row = []
-    bar = progressbar.ProgressBar(widgets=[ "Loading: ",progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])
-    for i in bar(range(df.shape[0])):
-        date_row.append("%02d-%02d"%(df["real_start_time"][i].month,df["real_start_time"][i].day))
-    df.insert(1, 'date', date_row)
-    df = df.to_csv("%s/experiment/new_ALL_COMBINED_True.csv"%DATA_PATH,index=False)
-
-def getODs():
-    '''重新获得对应的OD'''
-    all_start_ver,all_end_ver = [],[]
-    search_dic = []
-    for i in range(7):
-        df = pd.read_csv("Simulation/data/combined/period_%s.csv" % i)
-        bar = progressbar.ProgressBar(widgets=['%s: '%i,progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])    
-        for j in bar(range(df.shape[0])):
-            if df["num"][j] == 4: break
-            combined_id = getID(df["start_ver"][j],df["end_ver"][j])
-            if combined_id in search_dic: continue
-            search_dic.append(combined_id)
-            all_start_ver.append(df["start_ver"][j])
-            all_end_ver.append(df["end_ver"][j])
-
-    ODs_df = pd.DataFrame({'start_ver':all_start_ver, 'end_ver':all_end_ver})
-    ODs_df.to_csv("Simulation/data/ODs_prestore.csv",index=False)
-
 

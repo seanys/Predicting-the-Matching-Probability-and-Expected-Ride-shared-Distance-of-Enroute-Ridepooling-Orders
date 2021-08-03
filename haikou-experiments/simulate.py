@@ -1,7 +1,7 @@
 '''Check the datasets for simulation'''
 import os
 from basis.file import downloadDatasets
-existing_datasets = os.path.exists("datasets")
+existing_datasets = os.path.exists("haikou-experiments/datasets")
 if existing_datasets == False:
     print("Downloading datasets...")
     print("If failed, you can download them from https://drive.google.com/file/d/1yi3aNhB6xc1vjsWX5pq9eb5rSyDiyeRw/view?usp=sharing")
@@ -15,7 +15,7 @@ import pandas as pd
 import datetime
 import csv
 import numpy as np
-from assistant import Schedule
+from basis.schedule import Schedule
 from basis.setting import MAX_SEARCH_LAYERS,MAX_DETOUR_LENGTH
 from basis.setting import WAITING_TIME,PERIODS_MINUTES,getSpeed,SPEED
 from basis.time_periods import ALL_PERIODS,TIME_DICS,PERIODS
@@ -44,20 +44,20 @@ class CarpoolSimulation(object):
 
     def possibleOD(self):
         '''Load all origin-destination'''
-        ODs_df = pd.read_csv("network/ODs_combined.csv")
+        ODs_df = pd.read_csv("haikou-experiments/network/ODs_combined.csv")
         self.possible_ODs = {}
         for i in range(ODs_df.shape[0]):
             self.possible_ODs[getID(ODs_df["start_ver"][i],ODs_df["end_ver"][i])] = i
 
     def generateByHistory(self):
         '''Run simulation experiments based on data provided by Didi Chuxing'''
-        self.csv_path = "results/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv"
+        self.csv_path = "haikou-experiments/results/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv"
         with open(self.csv_path,"w") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["passenger_id", "real_start_date", "real_start_time", "start_time", "end_time", "OD_id", 
                 "start_ver", "end_ver","orginal_start_ver", "orginal_end_ver", "original_distance",  "final_distance", 
                     "matching_or", "shared_distance", "detour", "gap", "matching_id", "matching_type", "matching_ver",""])
-        history_df = pd.read_csv("datasets/DATASETS_DIDI_CHUXING_HAIKOU.csv")
+        history_df = pd.read_csv("haikou-experiments/datasets/DATASETS_DIDI_CHUXING_HAIKOU.csv")
         history_df["depature_time"] = pd.to_datetime(history_df['depature_time'])
         cur_line = 1
         print("The simulation result is stored in results/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv")
@@ -223,21 +223,21 @@ class AnalyzeSimulationResults(object):
         self.computeByDay()
 
     def loadAllWeek(self):
-        df = pd.read_csv("datasets/date.csv")
+        df = pd.read_csv("haikou-experiments/datasets/date.csv")
         self.date_week = {}
         for i in range(df.shape[0]):
             self.date_week[df["date"][i]] = df["week"][i]
 
     def loadOriginal(self):
         self.origianl_orders,self.origianl_days = {},{}
-        df = pd.read_csv("network/combined_0.csv")
+        df = pd.read_csv("haikou-experiments/network/combined_0.csv")
         for j in range(df.shape[0]):
             self.origianl_orders[getID(df["start_ver"][j],df["end_ver"][j])] = df["num"][j]
             self.origianl_days[getID(df["start_ver"][j],df["end_ver"][j])] = df["days"][j]
 
     def computeByDay(self):
         self.loadOriginal()
-        exp_res = pd.read_csv("results/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv")
+        exp_res = pd.read_csv("haikou-experiments/results/SIMULATION_RESULTS_ALL_DIDI_CHUXING_HAIKOU.csv")
         exp_res["real_start_time"] = pd.to_datetime(exp_res["real_start_time"])
         self.all_ODs = {}
         bar = progressbar.ProgressBar(widgets=['Days ', progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])
@@ -259,7 +259,7 @@ class AnalyzeSimulationResults(object):
                     self.all_ODs[key][period_index]["aver_shared_distance"].append(sta_day[period_index][key]["aver_shared_distance"])
                     self.all_ODs[key][period_index]["aver_final_distance"].append(sta_day[period_index][key]["aver_final_distance"])
         
-        with open("results/SIMULATION_STATISTIC.csv","w") as csvfile:
+        with open("haikou-experiments/results/SIMULATION_STATISTIC.csv","w") as csvfile:
             writer = csv.writer(csvfile)
             row = ["start_ver","end_ver","original_num","original_days"]
             for i in range(len(PERIODS_MINUTES)): 

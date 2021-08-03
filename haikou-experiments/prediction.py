@@ -1,7 +1,7 @@
 '''Check the data for prediction'''
 import os
-from basis.file import downloadMatchingRelationship
-existing_datasets = os.path.exists("matching_relationship")
+from basis.file import downloadDatasets
+existing_datasets = os.path.exists("haikou-experiments/matching_relationship")
 if existing_datasets == False:
     print("Downloading datasets...")
     print("If failed, you can download them from https://drive.google.com/file/d/1_6QaIi7Ot1aIne-_aXoutvmTkZjVouaI/view?usp=sharing")
@@ -19,7 +19,8 @@ import datetime
 import csv
 from copy import deepcopy
 import progressbar
-from assistant import Schedule,getID
+from basis.schedule import Schedule
+from basis.assistant import getID
 from basis.setting import MAX_SEARCH_LAYERS,PERIODS,PLATFORM
 from basis.setting import WAITING_TIME,SPEED,MINUTE,PERIODS_MINUTES
 from basis.setting import CRITERION
@@ -32,12 +33,12 @@ ALL_TAKERS, ALL_SEEKERS = {},{}
 E = 2.718281828459045
 
 class InteratedSolver(object):
-    def __init__(self, tendency):
+    def __init__(self, max_OD_ID):
         self.HOUR_INDEX = 0 # study period
         self.MAX_ITERATE_TIMES = 10000
-        self.max_OD_ID = 100
+        self.max_OD_ID = max_OD_ID
         self.min_samples = 15 # ODs have less than 15 samples during the study period will be excluded
-        self.tendency = tendency # proportion of passengers choose carpooling
+        self.tendency = 1 # proportion of passengers choose carpooling
         self.loadODDic()
         self.loadODs()
         self.loadSeekerTaker()
@@ -47,8 +48,8 @@ class InteratedSolver(object):
         self.predictResults(final=True)
     
     def loadODs(self):
-        lambda_df = pd.read_csv("network/combined_0.csv") # demand rates
-        ODs_df = pd.read_csv("matching_relationship/ODs.csv") # OD
+        lambda_df = pd.read_csv("haikou-experiments/network/combined_0.csv") # demand rates
+        ODs_df = pd.read_csv("haikou-experiments/matching_relationship/ODs.csv") # OD
         self.all_ODs = {}
         bar = progressbar.ProgressBar(widgets=["ODs Loading:", progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])        
         for j in bar(range(self.max_OD_ID)):
@@ -75,8 +76,8 @@ class InteratedSolver(object):
     def loadSeekerTaker(self):
         self.ALL_SEEKERS = {}
         self.ALL_TAKERS = {}
-        seekers_df = pd.read_csv("matching_relationship/seekers.csv")
-        takers_df = pd.read_csv("matching_relationship/takers.csv")
+        seekers_df = pd.read_csv("haikou-experiments/matching_relationship/seekers.csv")
+        takers_df = pd.read_csv("haikou-experiments/matching_relationship/takers.csv")
 
         bar = progressbar.ProgressBar(widgets=["Seeker Loading:", progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])        
         self.all_seeker_keys = []
@@ -157,14 +158,14 @@ class InteratedSolver(object):
             
             all_change = [self.getRelativeChange(self.lam_taker_arrive),self.getRelativeChange(self.lam_seeker),self.getRelativeChange(self.eta_taker),self.getRelativeChange(self.P_taker),self.getRelativeChange(self.rho_taker),self.getRelativeChange(self.P_seeker)]
             change = max(all_change)
-            print("%s,%s,%s,%s,%s,%s,%s"%(self.iterate_time,all_change[0],all_change[1],all_change[2],all_change[3],all_change[4],all_change[5]))
+            print("iteration%s,%s,%s,%s,%s,%s,%s"%(self.iterate_time,all_change[0],all_change[1],all_change[2],all_change[3],all_change[4],all_change[5]))
             self.iterate_time = self.iterate_time + 1
 
         endtime = datetime.datetime.now()
         print("Iteration Times: %s" % self.iterate_time)
         print("Execution Time: %s second" % (endtime - starttime))
 
-        fo = open("results/experiments_log.txt", "a+")
+        fo = open("haikou-experiments/results/experiments_log.txt", "a+")
         fo.write("Study Period: %02s : %02s - %02s : %02s \n" % (PERIODS[self.HOUR_INDEX][0],PERIODS[self.HOUR_INDEX][1],PERIODS[self.HOUR_INDEX+1][0],PERIODS[self.HOUR_INDEX+1][1]))
         fo.write("Platform: %s \n" % PLATFORM)
         fo.write("Current Time: %s \n" % (time.asctime( time.localtime(time.time()))))
@@ -324,11 +325,11 @@ class InteratedSolver(object):
         endtime = datetime.datetime.now()
         print("Execution Time: %s second" % (endtime - starttime))
 
-        fo = open("results/experiments_log.txt", "a+")
+        fo = open("haikou-experiments/results/experiments_log.txt", "a+")
         fo.write("Execution Time: %s second\n\n" % (endtime - starttime))
         fo.close()
 
-        with open("results/PREDICTION_OD_%s_PERIOD_%s_SAMPLE_%s_TENDENCY_%.2f.csv"%(self.max_OD_ID,self.HOUR_INDEX,self.min_samples,self.tendency),"w") as csvfile:
+        with open("haikou-experiments/results/PREDICTION_OD_%s_PERIOD_%s_SAMPLE_%s_TENDENCY_%.2f.csv"%(self.max_OD_ID,self.HOUR_INDEX,self.min_samples,self.tendency),"w") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["OD_id", "start_ver", "end_ver", "num", "P_w", "l_w", "e_w"])
             for i in self.all_ODs.keys():
@@ -355,7 +356,7 @@ class InteratedSolver(object):
         return new_takers,new_shared_distance,new_detour
 
     def loadODDic(self):
-        df = pd.read_csv("matching_relationship/ODs.csv")
+        df = pd.read_csv("haikou-experiments/matching_relationship/ODs.csv")
         self.OD_dic = {}
         bar = progressbar.ProgressBar(widgets=["OD Dic Loading:", progressbar.Percentage(),' (', progressbar.SimpleProgress(), ') ',' (', progressbar.AbsoluteETA(), ') ',])        
         for i in range(df.shape[0]):
@@ -368,5 +369,6 @@ class InteratedSolver(object):
             }
 
 if __name__ == "__main__":
-    InteratedSolver(1)
+    max_OD_ID = 10000
+    InteratedSolver(max_OD_ID)
 

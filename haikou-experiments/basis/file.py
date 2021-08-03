@@ -59,16 +59,16 @@ def decompression(name):
 def downloadDatasets():
     '''Download datasets for simulation'''
     file_id = '1yi3aNhB6xc1vjsWX5pq9eb5rSyDiyeRw' # Chunk Size 2634(3000)
-    destination = 'datasets.zip'
+    destination = 'haikou-experiments/datasets.zip'
     downloadFileFromGoogleDrive(file_id, destination)
-    decompression("datasets")
+    decompression("haikou-experiments/datasets")
 
 def downloadMatchingRelationship():
     '''Download data for prediction'''
     file_id = '1RNEmGBfnm-nIP32m3R1oj4pK8Oxmm7EO' # Chunk Size 2634(3000)
-    destination = 'matching_relationship.zip'
+    destination = 'haikou-experiments/matching_relationship.zip'
     downloadFileFromGoogleDrive(file_id, destination)
-    decompression("matching_relationship")
+    decompression("haikou-experiments/matching_relationship")
 
 
 if __name__ == "__main__":
