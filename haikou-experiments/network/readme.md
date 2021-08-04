@@ -2,6 +2,6 @@
 
 `all_vertexes.csv`: All vertexes/nodes of the Haikou road network.
 
-`combined_0.csv`: OD pairs for prediction.
+`combined_0.csv`: OD pairs and the demand rates for prediction.
 
 `ODs_combine.csv`: OD pairs for simulation.
