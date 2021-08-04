@@ -6,16 +6,16 @@ Note that the version of the JDK installed in my computer is `1.8.0_v112`. And a
 
 Since the codes provided above only produce primitive results, a lot of procedure should be gone through before obtaining the key performance indicators which measure the accuracy of the prediction results compared to the simulation one. Because of the advantages of Python over JAVA in processing data, these procedures are programmed in Python collected in the folder named `python`. One can easily recognize, from the name, the purpose of each file which is explained in detail below:
 
-`get_simulation_result_from_original_data`: this file is created to get matching probabilities, ride/shared distance for each OD pair from simulation results produced by the project in version2_simulation. 
+`get_simulation_result_from_original_data.csv`: this file is created to get matching probabilities, ride/shared distance for each OD pair from simulation results produced by the project in version2_simulation. 
 
-`combine_theory_simulation_together`: this combines the prediction and simulation results together for each scenario in order to calculate the errors related.
+`combine_theory_simulation_together.csv`: this combines the prediction and simulation results together for each scenario in order to calculate the errors related.
 
-`get_convergence_for_all_scenarios`: this file checks whether the prediction results gained converge finally when the corresponding experiment terminates for each scenario.
+`get_convergence_for_all_scenarios.csv`: this file checks whether the prediction results gained converge finally when the corresponding experiment terminates for each scenario.
 
-`get_route_data_include_theory_and_simulation`: this code collects all data with convergent prediction results, including prediction and simulation results, corresponding to a specific OD pair into one file for each OD pair
+`get_route_data_include_theory_and_simulation.csv`: this code collects all data with convergent prediction results, including prediction and simulation results, corresponding to a specific OD pair into one file for each OD pair
 
-`get_key_performance_indicators`: this file is used to calculate the key performance indicators, including RMSE and MAPE, for each OD pair
+`get_key_performance_indicators.csv`: this file is used to calculate the key performance indicators, including RMSE and MAPE, for each OD pair
 
-`plot_rmse_mape_boxplot`: this file, as implied by the name, is used to present the key performance indicators by graphs. 
+`plot_rmse_mape_boxplot.csv`: this file, as implied by the name, is used to present the key performance indicators by graphs. 
 
 Note that as mentioned earlier, directory names presented by using absolute path should be corrected before running it. And make sure all required files have already existed before proceeding to the next step. And finally, the order along which these Python files should be conducted is suggested by the order as listed above.
