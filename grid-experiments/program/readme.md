@@ -17,3 +17,5 @@ Get_route_data_include_theory_and_simulation: this code collects all data with c
 Get_key_performance_indicators: this file is used to calculate the key performance indicators, including RMSE and MAPE, for each OD pair
 
 Plot_rmse_mape_boxplot: this file, as implied by the name, is used to present the key performance indicators by graphs. 
+
+Note that as mentioned earlier, directory names presented by using absolute path should be corrected before running it. And make sure all required files have already existed before proceeding to the next step. And finally, the order along which these Python files should be conducted is suggested by the order as listed above.
