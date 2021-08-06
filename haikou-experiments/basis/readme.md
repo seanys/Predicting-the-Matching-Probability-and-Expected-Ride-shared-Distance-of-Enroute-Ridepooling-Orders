@@ -2,7 +2,7 @@
 
 `edges.py`: Load all edges/links
 
-`neighbor.py`: Load the edges/links that are less than 1500 meters away from a vextex.
+`neighbor.py`: Load the edges/links that are less than 1500 meters away from a vertex.
 
  `schedule.py`: Schedule/Route function
 
