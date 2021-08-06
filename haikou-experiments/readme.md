@@ -1,4 +1,4 @@
-`prediction.py` : Predict the matching probability and expected ride/shared distance based on the demand rate `network/combined_0.csv` and network `network/all_edges.csv` `network/all_vertexes.csv`. The progam will download the matching relationship at first. If you just want to run a simple network, you can set the  max_OD_ID a small number.
+`prediction.py` : Predict the matching probability and expected ride/shared distance based on the demand rate `network/combined_0.csv` and network `network/all_edges.csv` `network/all_vertexes.csv`. The progam will download the matching relationship at first. If you just want to run it based on a simple network, you can set the  max_OD_ID a small number.
 
 ```
 if __name__ == "__main__":
