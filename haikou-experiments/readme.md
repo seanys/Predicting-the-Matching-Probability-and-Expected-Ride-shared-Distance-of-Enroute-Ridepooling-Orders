@@ -10,9 +10,9 @@ if __name__ == "__main__":
 
 > Please install the needed packages by pip: `pandas`, `csv`, `progressbar`, `scipy`, `json`, `numpy`, `simpy`
 
-`compare.py` : Analyse the simulation results and compare with the prediction results.
+`compare.py` : Analyze the simulation results and compare with the prediction results.
 
-`network/`: The haikou road network.
+`network/`: The Haikou road network.
 
 `results/`: This simulation and prediction results of `prediction.py` and `simulation.py` are output to this folder.  
 
