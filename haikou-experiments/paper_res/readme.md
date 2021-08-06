@@ -1,4 +1,4 @@
-`ALL_COMBINED_True_SAMPLE_15_DAY_COMPARE_1.00.csv`: Prediction detail of every OD pair.
+`ALL_COMBINED_True_SAMPLE_15_DAY_COMPARE_1.00.csv`: Details about prediction of every OD pair.
 
 `count_by_day.png`: Number of orders in different days.
 
