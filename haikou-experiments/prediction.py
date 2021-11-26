@@ -4,7 +4,7 @@ from basis.file import downloadMatchingRelationship
 existing_datasets = os.path.exists("haikou-experiments/matching_relationship")
 if existing_datasets == False:
     print("Downloading datasets...")
-    print("If failed, you can download them from https://drive.google.com/file/d/1_6QaIi7Ot1aIne-_aXoutvmTkZjVouaI/view?usp=sharing")
+    print("If failed, you can download them from https://drive.google.com/file/d/1RNEmGBfnm-nIP32m3R1oj4pK8Oxmm7EO/view?usp=sharing")
     downloadMatchingRelationship()
 
 '''import neccessary dependency'''
